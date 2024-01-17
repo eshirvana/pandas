@@ -17,10 +17,13 @@ from pandas.io.excel._openpyxl import OpenpyxlReader
 
 openpyxl = pytest.importorskip("openpyxl")
 
-pytestmark = pytest.mark.parametrize("ext", [".xlsx"])
+
+@pytest.fixture
+def ext():
+    return ".xlsx"
 
 
-def test_to_excel_styleconverter(ext):
+def test_to_excel_styleconverter():
     from openpyxl import styles
 
     hstyle = {
@@ -266,8 +269,8 @@ def test_if_sheet_exists_raises(ext, if_sheet_exists, msg):
     # GH 40230
     df = DataFrame({"fruit": ["pear"]})
     with tm.ensure_clean(ext) as f:
+        df.to_excel(f, sheet_name="foo", engine="openpyxl")
         with pytest.raises(ValueError, match=re.escape(msg)):
-            df.to_excel(f, sheet_name="foo", engine="openpyxl")
             with ExcelWriter(
                 f, engine="openpyxl", mode="a", if_sheet_exists=if_sheet_exists
             ) as writer:

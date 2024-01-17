@@ -41,7 +41,9 @@ from pandas.plotting._matplotlib.tools import (
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
+    from matplotlib.container import BarContainer
     from matplotlib.figure import Figure
+    from matplotlib.patches import Polygon
 
     from pandas._typing import PlottingOrientation
 
@@ -112,7 +114,8 @@ class HistPlot(LinePlot):
         *,
         bins,
         **kwds,
-    ):
+        # might return a subset from the possible return types of Axes.hist(...)[2]?
+    ) -> BarContainer | Polygon | list[BarContainer | Polygon]:
         if column_num == 0:
             cls._initialize_stacker(ax, stacking_id, len(bins) - 1)
 
@@ -134,10 +137,14 @@ class HistPlot(LinePlot):
             else self.data
         )
 
-        for i, (label, y) in enumerate(self._iter_data(data=data)):
+        # error: Argument "data" to "_iter_data" of "MPLPlot" has incompatible
+        # type "object"; expected "DataFrame | dict[Hashable, Series | DataFrame]"
+        for i, (label, y) in enumerate(self._iter_data(data=data)):  # type: ignore[arg-type]
             ax = self._get_ax(i)
 
             kwds = self.kwds.copy()
+            if self.color is not None:
+                kwds["color"] = self.color
 
             label = pprint_thing(label)
             label = self._mark_right_label(label, index=i)
@@ -157,7 +164,7 @@ class HistPlot(LinePlot):
                 kwds.pop("color")
 
             if self.weights is not None:
-                kwds["weights"] = self._get_column_weights(self.weights, i, y)
+                kwds["weights"] = type(self)._get_column_weights(self.weights, i, y)
 
             y = reformat_hist_y_given_by(y, self.by)
 
@@ -167,7 +174,8 @@ class HistPlot(LinePlot):
             if self.by is not None:
                 ax.set_title(pprint_thing(label))
 
-            self._append_legend_handles_labels(artists[0], label)
+            # error: Value of type "Polygon" is not indexable
+            self._append_legend_handles_labels(artists[0], label)  # type: ignore[index,arg-type]
 
     def _make_plot_keywords(self, kwds: dict[str, Any], y: np.ndarray) -> None:
         """merge BoxPlot/KdePlot properties to passed kwds"""
@@ -195,11 +203,17 @@ class HistPlot(LinePlot):
 
     def _post_plot_logic(self, ax: Axes, data) -> None:
         if self.orientation == "horizontal":
-            ax.set_xlabel("Frequency" if self.xlabel is None else self.xlabel)
-            ax.set_ylabel(self.ylabel)
+            # error: Argument 1 to "set_xlabel" of "_AxesBase" has incompatible
+            # type "Hashable"; expected "str"
+            ax.set_xlabel(
+                "Frequency" if self.xlabel is None else self.xlabel  # type: ignore[arg-type]
+            )
+            ax.set_ylabel(self.ylabel)  # type: ignore[arg-type]
         else:
-            ax.set_xlabel(self.xlabel)
-            ax.set_ylabel("Frequency" if self.ylabel is None else self.ylabel)
+            ax.set_xlabel(self.xlabel)  # type: ignore[arg-type]
+            ax.set_ylabel(
+                "Frequency" if self.ylabel is None else self.ylabel  # type: ignore[arg-type]
+            )
 
     @property
     def orientation(self) -> PlottingOrientation:
@@ -270,7 +284,7 @@ class KdePlot(HistPlot):
 
     def _make_plot_keywords(self, kwds: dict[str, Any], y: np.ndarray) -> None:
         kwds["bw_method"] = self.bw_method
-        kwds["ind"] = self._get_ind(y, ind=self.ind)
+        kwds["ind"] = type(self)._get_ind(y, ind=self.ind)
 
     def _post_plot_logic(self, ax: Axes, data) -> None:
         ax.set_ylabel("Density")
@@ -278,7 +292,7 @@ class KdePlot(HistPlot):
 
 def _grouped_plot(
     plotf,
-    data,
+    data: Series | DataFrame,
     column=None,
     by=None,
     numeric_only: bool = True,
@@ -321,7 +335,7 @@ def _grouped_plot(
 
 
 def _grouped_hist(
-    data,
+    data: Series | DataFrame,
     column=None,
     by=None,
     ax=None,
@@ -403,7 +417,7 @@ def _grouped_hist(
 
 
 def hist_series(
-    self,
+    self: Series,
     by=None,
     ax=None,
     grid: bool = True,
@@ -444,7 +458,11 @@ def hist_series(
         axes = np.array([ax])
 
         set_ticks_props(
-            axes, xlabelsize=xlabelsize, xrot=xrot, ylabelsize=ylabelsize, yrot=yrot
+            axes,
+            xlabelsize=xlabelsize,
+            xrot=xrot,
+            ylabelsize=ylabelsize,
+            yrot=yrot,
         )
 
     else:
@@ -475,7 +493,7 @@ def hist_series(
 
 
 def hist_frame(
-    data,
+    data: DataFrame,
     column=None,
     by=None,
     grid: bool = True,
